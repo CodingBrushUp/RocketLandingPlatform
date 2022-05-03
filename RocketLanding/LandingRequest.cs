@@ -9,6 +9,7 @@ public class LandingRequest
     ConcurrentDictionary<Rocket, Location> ReservedLands = new ConcurrentDictionary<Rocket, Location>();
     private readonly LandingArea _landingArea;
     private readonly Platform _platform;
+    object _lock = new object();
 
     public LandingRequest(LandingArea landingArea, Platform platform)
     {
@@ -19,22 +20,23 @@ public class LandingRequest
     public LandingRequestResult ReserveLand(Rocket rocket)
     {
         ArgumentNullException.ThrowIfNull(rocket);
+        lock(_lock) {
+            if (!isInLandingArea())
+                throw new ArgumentOutOfRangeException("Platform size is out of Landing Area!");
 
-        if (!isInLandingArea())
-            throw new ArgumentOutOfRangeException("Platform size is out of Landing Area!");
+            if (IsRocketOutofTrajectory(rocket))
+                return LandingRequestResult.out_of_platform;
 
-        if (IsRocketOutofTrajectory(rocket))
-            return LandingRequestResult.out_of_platform;
+            if (ReservedLands.IsEmpty)
+                return ReserveLandingLocation(rocket);
 
-        if (ReservedLands.IsEmpty)
-            return ReserveLandingLocation(rocket);
+            if (ReservedLands.ContainsKey(rocket))
+                return ReserveLandingLocation(rocket);
 
-        if (ReservedLands.ContainsKey(rocket))
-            return ReserveLandingLocation(rocket);
+            return IsRocketInPreviousRocketArea(rocket);
 
-        return IsRocketInPreviousRocketArea(rocket);
-
-        return LandingRequestResult.ok_for_landing;
+            return LandingRequestResult.ok_for_landing;
+        }
     }
 
     private LandingRequestResult IsRocketInPreviousRocketArea(Rocket rocket)
